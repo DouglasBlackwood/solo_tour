@@ -1,0 +1,59 @@
+shared:
+  DefaultQueueOptions: &DefaultQueueOptions
+    commit_message_template: |
+      {{ title }} (#{{ number }})
+
+      {{ body }}
+    allow_inplace_checks: true
+    merge_method: squash
+
+pull_request_rules:
+  - name: automatic merge
+    conditions:
+      - base=main
+    actions:
+      queue:
+
+  - name: testing requirements
+    conditions:
+      - or:
+          - label=skip tests
+          - -title~=^(feat|fix)
+          - files~=test
+    actions:
+      post_check:
+        title: |
+          {% if check_succeed %}
+          Testing requirements are present.
+          {% else %}
+          Testing requirements are missing.
+          {% endif %}
+
+  - name: Conventional Commit
+    conditions:
+      - base=main
+    actions:
+      post_check:
+        success_conditions:
+          - "title ~= ^(fix|feat|docs|style|refactor|perf|test|build|ci|chore|revert)(?:\\(.+\\))?:"
+        title: |
+          {% if check_succeed %}
+          Title follows Conventional Commit
+          {% else %}
+          Title does not follow Conventional Commit
+          {% endif %}
+        summary: |
+          {% if not check_succeed %}
+          The pull request title must follow
+          [Conventional Commit](https://www.conventionalcommits.org/en/v1.0.0/).
+          {% endif %}
+
+queue_rules:
+  - name: default
+    <<: *DefaultQueueOptions
+    queue_conditions:
+      - author=DouglasBlackwood
+      - "check-success=Rule: testing requirements (post_check)"
+      - "check-success=Rule: Conventional Commit (post_check)"
+    merge_conditions:
+      - check-success = test
